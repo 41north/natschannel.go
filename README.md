@@ -1,7 +1,7 @@
 # Jrpc2 NATS Channel
 
 ![Build](https://github.com/41north/go-natschannel/actions/workflows/ci.yml/badge.svg)
-[![Coverage Status](https://coveralls.io/repos/github/41north/go-natschannel/badge.svg/readme)](https://coveralls.io/github/41north/go-natschannel)
+[![Coverage Status](https://coveralls.io/repos/github/41north/go-natschannel/badge.svg)](https://coveralls.io/github/41north/go-natschannel)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 Status: _EXPERIMENTAL_
