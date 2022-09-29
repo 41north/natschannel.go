@@ -46,6 +46,10 @@ func TestChannel_New(t *testing.T) {
 }
 
 func TestChannel_Dial(t *testing.T) {
+	// attempt to connect before the server is started
+	_, err := Dial("nats://localhost:4222", "foo.bar")
+	assert.Error(t, nats.ErrNoServers)
+
 	s := runBasicServer(t)
 	defer shutdownServer(t, s)
 
