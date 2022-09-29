@@ -2,12 +2,16 @@ package natschannel
 
 import (
 	"net"
+	"sync/atomic"
 
 	"github.com/nats-io/nats.go"
 )
 
 const (
 	DefaultInboxSize = 256
+
+	statusHeader       = "Status"
+	noRespondersStatus = "503"
 )
 
 // Option is a builder function for modifying Options.
@@ -58,17 +62,25 @@ type Channel struct {
 	subject string
 	group   string
 
-	conn  *nats.Conn
+	conn   *nats.Conn
+	closed atomic.Bool
+
 	inbox chan *nats.Msg
 }
 
 // Send implements the corresponding method of the jrpc2 Channel interface.
 // Data is sent in a single NATS message.
 func (c *Channel) Send(data []byte) error {
+	// check if the channel has been closed
+	if c.closed.Load() {
+		return net.ErrClosed
+	}
 	// create a unique inbox subject for receiving the response
 	replyTo := c.conn.NewRespInbox()
 	// subscribe to the inbox subject
 	if err := c.subscribe(replyTo); err != nil {
+		// any subscription error is treated as fatal and the channel closed
+		_ = c.Close()
 		return err
 	}
 	// publish the request
@@ -79,29 +91,32 @@ func (c *Channel) Send(data []byte) error {
 // The last message to have been received is read and it's payload returned.
 func (c *Channel) Recv() ([]byte, error) {
 	msg, ok := <-c.inbox
+	// check if the channel has been closed
 	if !ok {
 		return nil, nats.ErrConnectionClosed
 	}
+	// check for a status response
+	if len(msg.Data) == 0 && msg.Header.Get(statusHeader) == noRespondersStatus {
+		// no one is listening on the other end, close the channel
+		// the intention is for app code to backoff and try again
+		_ = c.Close()
+		return nil, nats.ErrNoResponders
+	}
+
+	// otherwise return the msg data
 	return msg.Data, nil
 }
 
 // Close implements the corresponding method of the Channel interface.
 // Any active subscriptions are drained, the inbox channel closed and then the connection closed.
 func (c *Channel) Close() error {
-	// check if closes was already called
-	if c.conn.IsDraining() || c.conn.IsClosed() {
+	// check first if the channel has already been closed
+	if !c.closed.CompareAndSwap(false, true) {
 		return net.ErrClosed
 	}
 
-	// drain any interest first
-	if err := c.conn.Drain(); err != nil {
-		return err
-	}
-
-	// close inbox channel and the nats connection
-	// TODO listen with close handler?
+	// close inbox channel
 	close(c.inbox)
-	c.conn.Close()
 	return nil
 }
 
@@ -110,15 +125,16 @@ func (c *Channel) subscribe(replyTo string) error {
 	var err error
 	var sub *nats.Subscription
 
-	if c.group != "" {
-		sub, err = c.conn.ChanQueueSubscribe(replyTo, c.group, c.inbox)
-	} else {
+	if c.group == "" {
 		sub, err = c.conn.ChanSubscribe(replyTo, c.inbox)
+	} else {
+		sub, err = c.conn.ChanQueueSubscribe(replyTo, c.group, c.inbox)
 	}
 
 	if err != nil {
 		return err
 	}
+
 	// cleanup automatically after we receive one response
 	return sub.AutoUnsubscribe(1)
 }

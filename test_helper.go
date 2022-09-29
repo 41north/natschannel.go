@@ -24,7 +24,7 @@ func client(t *testing.T, s *server.Server, opts ...nats.Option) *nats.Conn {
 	return nc
 }
 
-func pingPongTestServer(t *testing.T, s *server.Server, subject string, group string) *nats.Subscription {
+func pingPongTestResponder(t *testing.T, s *server.Server, subject string, group string) *nats.Subscription {
 	t.Helper()
 	conn := client(t, s)
 
@@ -50,6 +50,12 @@ func pingPongTestServer(t *testing.T, s *server.Server, subject string, group st
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
+
+	// helps ensure the server interest tree has been updated before any test code attempts to send to the subject
+	if err = conn.Flush(); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
 	return sub
 }
 

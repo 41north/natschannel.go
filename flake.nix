@@ -66,6 +66,7 @@
         devShells.default = mkShell {
           packages = with pkgs;
             [
+              gcc
               delve # https://github.com/go-delve/delve
               go_1_19 # https://go.dev/
               gotools # https://go.googlesource.com/tools
