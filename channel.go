@@ -8,6 +8,10 @@ import (
 
 const (
 	DefaultInboxSize = 256
+
+	statusHeader       = "Status"
+	noRespondersStatus = "503"
+	reqTimeoutStatus   = "408"
 )
 
 // Option is a builder function for modifying Options.
@@ -79,9 +83,15 @@ func (c *Channel) Send(data []byte) error {
 // The last message to have been received is read and it's payload returned.
 func (c *Channel) Recv() ([]byte, error) {
 	msg, ok := <-c.inbox
+	// check if the channel has been closed
 	if !ok {
 		return nil, nats.ErrConnectionClosed
 	}
+	// check for a status response
+	if len(msg.Data) == 0 && msg.Header.Get(statusHeader) == noRespondersStatus {
+		return nil, nats.ErrNoResponders
+	}
+	// otherwise return the msg data
 	return msg.Data, nil
 }
 

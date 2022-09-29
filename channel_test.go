@@ -2,6 +2,7 @@ package natschannel
 
 import (
 	"crypto/rand"
+	"fmt"
 	"testing"
 
 	"github.com/nats-io/nats.go"
@@ -70,14 +71,13 @@ func TestChannel_SendAndReceive(t *testing.T) {
 
 	// send some random data and check that we received it back
 	for i := 0; i < 1000; i++ {
-		// generate some random bytes
-		bytes := make([]byte, 128)
-		rand.Read(bytes)
+		bytes := []byte(fmt.Sprintf("data: %d", i+1))
 		// send
 		assert.Nil(t, channel.Send(bytes))
 		// receive
 		received, err := channel.Recv()
 		assert.Nil(t, err)
+		assert.False(t, len(received) == 0)
 		assert.Equal(t, bytes, received)
 	}
 }
