@@ -3,6 +3,7 @@ package natschannel
 import (
 	"crypto/rand"
 	"fmt"
+	"net"
 	"testing"
 
 	"github.com/nats-io/nats.go"
@@ -66,8 +67,17 @@ func TestChannel_SendAndReceive(t *testing.T) {
 	channel, err := New(conn, subject, NatsOptions(nats.RetryOnFailedConnect(false)))
 	assert.Nil(t, err)
 
-	// create a server
-	pingPongTestServer(t, s, subject, "")
+	// attempt a send before there is a responder
+	assert.Error(t, nats.ErrNoResponders, channel.Send([]byte("hello")))
+	// subsequent calls result in a closed error
+	assert.Error(t, net.ErrClosed, channel.Send([]byte("world")))
+
+	// create a responder
+	pingPongTestResponder(t, s, subject, "")
+
+	// re-init the channel
+	channel, err = New(conn, subject)
+	assert.Nil(t, err)
 
 	// send some random data and check that we received it back
 	for i := 0; i < 1000; i++ {
@@ -80,6 +90,11 @@ func TestChannel_SendAndReceive(t *testing.T) {
 		assert.False(t, len(received) == 0)
 		assert.Equal(t, bytes, received)
 	}
+
+	// close the channel
+	assert.Nil(t, channel.Close())
+	// subsequent calls to close should return an error
+	assert.Error(t, net.ErrClosed, channel.Close())
 }
 
 func TestChannel_GroupSendAndReceive(t *testing.T) {
@@ -97,7 +112,7 @@ func TestChannel_GroupSendAndReceive(t *testing.T) {
 
 	// create a few test servers
 	for i := 0; i < 3; i++ {
-		pingPongTestServer(t, s, subject, group)
+		pingPongTestResponder(t, s, subject, group)
 	}
 
 	// send some random data and check that we received it back

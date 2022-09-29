@@ -24,7 +24,7 @@ func client(t *testing.T, s *server.Server, opts ...nats.Option) *nats.Conn {
 	return nc
 }
 
-func pingPongTestServer(t *testing.T, s *server.Server, subject string, group string) *nats.Subscription {
+func pingPongTestResponder(t *testing.T, s *server.Server, subject string, group string) *nats.Subscription {
 	t.Helper()
 	conn := client(t, s)
 
