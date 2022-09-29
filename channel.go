@@ -93,7 +93,7 @@ func (c *Channel) Recv() ([]byte, error) {
 	msg, ok := <-c.inbox
 	// check if the channel has been closed
 	if !ok {
-		return nil, nats.ErrConnectionClosed
+		return nil, net.ErrClosed
 	}
 	// check for a status response
 	if len(msg.Data) == 0 && msg.Header.Get(statusHeader) == noRespondersStatus {

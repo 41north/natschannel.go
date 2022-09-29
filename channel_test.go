@@ -67,10 +67,15 @@ func TestChannel_SendAndReceive(t *testing.T) {
 	channel, err := New(conn, subject, NatsOptions(nats.RetryOnFailedConnect(false)))
 	assert.Nil(t, err)
 
-	// attempt a send before there is a responder
+	// attempt a send and recv before there is a responder
 	assert.Error(t, nats.ErrNoResponders, channel.Send([]byte("hello")))
-	// subsequent calls result in a closed error
+	_, err = channel.Recv()
+	assert.Error(t, nats.ErrNoResponders, err)
+
+	// subsequent send and recv result in a closed error
 	assert.Error(t, net.ErrClosed, channel.Send([]byte("world")))
+	_, err = channel.Recv()
+	assert.Error(t, net.ErrClosed, err)
 
 	// create a responder
 	pingPongTestResponder(t, s, subject, "")
@@ -127,4 +132,22 @@ func TestChannel_GroupSendAndReceive(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Equal(t, bytes, received)
 	}
+}
+
+func TestChannel_Close(t *testing.T) {
+	s := runBasicServer(t)
+	defer shutdownServer(t, s)
+
+	conn := client(t, s)
+	channel, err := New(conn, "foo.bar")
+	assert.Nil(t, err)
+
+	// close should happen without issue
+	assert.Nil(t, channel.Close())
+	// subsequent calls to close should return a closed error
+	assert.Error(t, net.ErrClosed, channel.Close())
+	// calls to send and receive should also return a closed error
+	assert.Error(t, net.ErrClosed, channel.Send([]byte{}))
+	_, err = channel.Recv()
+	assert.Error(t, net.ErrClosed, err)
 }
