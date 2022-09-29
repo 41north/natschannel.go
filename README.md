@@ -32,7 +32,7 @@ $ go get -u github.com/41north/go-natschannel
 Add this import line to the file you're working in:
 
 ```Go
-import natschannel "github.com/41north/go-natschannel"
+import "github.com/41north/go-natschannel"
 ```
 
 ## Quick Start
