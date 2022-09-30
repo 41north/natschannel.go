@@ -1,4 +1,4 @@
-module github.com/41north/jrpc2-nats-channel
+module github.com/41north/natschannel.go
 
 go 1.19
 
