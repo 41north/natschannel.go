@@ -59,13 +59,21 @@ func NatsOptions(options ...nats.Option) Option {
 
 // Channel implements the jrpc2 Channel interface over a NATS connection.
 type Channel struct {
+	opts    Options
 	subject string
-	group   string
 
 	conn   *nats.Conn
 	closed atomic.Bool
 
 	inbox chan *nats.Msg
+}
+
+func (c *Channel) Group() string {
+	return c.opts.Group
+}
+
+func (c *Channel) InboxSize() int {
+	return cap(c.inbox)
 }
 
 // Send implements the corresponding method of the jrpc2 Channel interface.
@@ -125,10 +133,11 @@ func (c *Channel) subscribe(replyTo string) error {
 	var err error
 	var sub *nats.Subscription
 
-	if c.group == "" {
+	group := c.opts.Group
+	if group == "" {
 		sub, err = c.conn.ChanSubscribe(replyTo, c.inbox)
 	} else {
-		sub, err = c.conn.ChanQueueSubscribe(replyTo, c.group, c.inbox)
+		sub, err = c.conn.ChanQueueSubscribe(replyTo, group, c.inbox)
 	}
 
 	if err != nil {
@@ -146,8 +155,8 @@ func New(conn *nats.Conn, subject string, options ...Option) (*Channel, error) {
 		return nil, err
 	}
 	return &Channel{
+		opts:    *opts,
 		subject: subject,
-		group:   opts.Group,
 		conn:    conn,
 		inbox:   make(chan *nats.Msg, opts.InboxSize),
 	}, nil
@@ -165,8 +174,8 @@ func Dial(url string, subject string, options ...Option) (*Channel, error) {
 	}
 
 	return &Channel{
+		opts:    *opts,
 		subject: subject,
-		group:   opts.Group,
 		conn:    conn,
 		inbox:   make(chan *nats.Msg, opts.InboxSize),
 	}, nil

@@ -1,4 +1,4 @@
-package natschannel
+package natschannel_test
 
 import (
 	"testing"
