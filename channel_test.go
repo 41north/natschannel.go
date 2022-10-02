@@ -1,10 +1,12 @@
-package natschannel
+package natschannel_test
 
 import (
 	"crypto/rand"
 	"fmt"
 	"net"
 	"testing"
+
+	"github.com/41north/natschannel.go"
 
 	"github.com/nats-io/nats.go"
 	"github.com/stretchr/testify/assert"
@@ -15,7 +17,7 @@ func ExampleNew() {
 	if err != nil {
 		panic(err)
 	}
-	channel, err := New(conn, "foo.bar")
+	channel, err := natschannel.New(conn, "foo.bar")
 	if err != nil {
 		panic(err)
 	}
@@ -24,7 +26,7 @@ func ExampleNew() {
 }
 
 func ExampleDial() {
-	channel, err := Dial("nats://localhost:4222", "foo.bar")
+	channel, err := natschannel.Dial("nats://localhost:4222", "foo.bar")
 	if err != nil {
 		panic(err)
 	}
@@ -38,24 +40,24 @@ func TestChannel_New(t *testing.T) {
 
 	conn := client(t, s)
 
-	channel, err := New(conn, "foo.bar", InboxSize(128))
+	channel, err := natschannel.New(conn, "foo.bar", natschannel.InboxSize(128))
 	assert.Nil(t, err)
 
 	assert.Nil(t, channel.Close())
-	assert.Equal(t, 128, cap(channel.inbox))
+	assert.Equal(t, 128, channel.InboxSize())
 }
 
 func TestChannel_Dial(t *testing.T) {
 	// attempt to connect before the server is started
-	_, err := Dial("nats://localhost:4222", "foo.bar")
+	_, err := natschannel.Dial("nats://localhost:4222", "foo.bar")
 	assert.Error(t, nats.ErrNoServers)
 
 	s := runBasicServer(t)
 	defer shutdownServer(t, s)
 
-	channel, err := Dial(s.ClientURL(), "foo.bar")
+	channel, err := natschannel.Dial(s.ClientURL(), "foo.bar")
 	assert.Nil(t, err)
-	assert.Equal(t, DefaultInboxSize, cap(channel.inbox))
+	assert.Equal(t, natschannel.DefaultInboxSize, channel.InboxSize())
 
 	assert.Nil(t, channel.Close())
 }
@@ -68,7 +70,7 @@ func TestChannel_SendAndReceive(t *testing.T) {
 
 	// create a client
 	conn := client(t, s)
-	channel, err := New(conn, subject, NatsOptions(nats.RetryOnFailedConnect(false)))
+	channel, err := natschannel.New(conn, subject, natschannel.NatsOptions(nats.RetryOnFailedConnect(false)))
 	assert.Nil(t, err)
 
 	// attempt a send and recv before there is a responder
@@ -85,7 +87,7 @@ func TestChannel_SendAndReceive(t *testing.T) {
 	pingPongTestResponder(t, s, subject, "")
 
 	// re-init the channel
-	channel, err = New(conn, subject)
+	channel, err = natschannel.New(conn, subject)
 	assert.Nil(t, err)
 
 	// send some random data and check that we received it back
@@ -115,9 +117,9 @@ func TestChannel_GroupSendAndReceive(t *testing.T) {
 
 	// create a client
 	conn := client(t, s)
-	channel, err := New(conn, subject, Group(group))
+	channel, err := natschannel.New(conn, subject, natschannel.Group(group))
 	assert.Nil(t, err)
-	assert.Equal(t, group, channel.group)
+	assert.Equal(t, group, channel.Group())
 
 	// create a few test servers
 	for i := 0; i < 3; i++ {
@@ -143,7 +145,7 @@ func TestChannel_Close(t *testing.T) {
 	defer shutdownServer(t, s)
 
 	conn := client(t, s)
-	channel, err := New(conn, "foo.bar")
+	channel, err := natschannel.New(conn, "foo.bar")
 	assert.Nil(t, err)
 
 	// close should happen without issue
